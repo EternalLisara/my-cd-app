@@ -196,13 +196,15 @@ pipeline {
                 echo "========================"
                 echo "🏁 PIPELINE COMPLETED"
                 echo "========================"
-                echo "🔢 Build Number: ${BUILD_NUMBER}"
-                echo "⏰ Duration: ${currentBuild.durationString}"
-                echo "🎯 Result: ${currentBuild.currentResult}"
-                echo "👤 Started by: ${BUILD_USER_ID}"
                 echo "📅 Timestamp: $(date)"
                 echo "========================"
             '''
+            script {
+                echo "🔢 Build Number: ${env.BUILD_NUMBER}"
+                echo "⏰ Duration: ${currentBuild.durationString}"
+                echo "🎯 Result: ${currentBuild.currentResult}"
+                echo "👤 Started by: ${env.BUILD_USER_ID}"
+            }
         }
         success {
             echo "🎉 CONTINUOUS DEPLOYMENT SUCCESSFUL!"
