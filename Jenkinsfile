@@ -7,6 +7,19 @@ pipeline {
     }
     
     stages {
+        stage('Check Environment') {
+            steps {
+                script {
+                    // Проверяем доступность Docker
+                    sh '''
+                        echo "Checking Docker availability..."
+                        docker --version || echo "Docker not available"
+                        docker ps || echo "Cannot connect to Docker daemon"
+                    '''
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout scm
@@ -17,7 +30,14 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker image..."
-                    docker.build("${DOCKER_IMAGE}")
+                    // Проверяем доступность Docker перед сборкой
+                    def dockerAvailable = sh(script: 'which docker || echo "not-found"', returnStdout: true).trim()
+                    if (dockerAvailable == "not-found") {
+                        error "Docker is not available in the Jenkins environment"
+                    }
+                    
+                    // Собираем образ
+                    sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
         }
@@ -26,8 +46,8 @@ pipeline {
             steps {
                 script {
                     echo "Stopping previous container..."
-                    sh 'docker stop ${CONTAINER_NAME} || true'
-                    sh 'docker rm ${CONTAINER_NAME} || true'
+                    sh "docker stop ${CONTAINER_NAME} || true"
+                    sh "docker rm ${CONTAINER_NAME} || true"
                 }
             }
         }
@@ -36,9 +56,7 @@ pipeline {
             steps {
                 script {
                     echo "Deploying new container..."
-                    docker.image("${DOCKER_IMAGE}").run(
-                        "--name ${CONTAINER_NAME} -p 3000:80 -d"
-                    )
+                    sh "docker run -d --name ${CONTAINER_NAME} -p 3000:80 ${DOCKER_IMAGE}"
                 }
             }
         }
@@ -47,8 +65,8 @@ pipeline {
             steps {
                 script {
                     echo "Verifying deployment..."
-                    sleep 5
-                    sh 'curl -f http://localhost:3000 || exit 1'
+                    sleep 10
+                    sh "curl -f http://localhost:3000 || exit 1"
                 }
             }
         }
@@ -57,14 +75,10 @@ pipeline {
     post {
         always {
             echo "Pipeline execution completed"
-            script {
-                // Очистка старых образов
-                sh 'docker image prune -f'
-            }
         }
         success {
             echo "✅ Application deployed successfully!"
-            echo "��� Access your app at: http://localhost:3000"
+            echo "🌐 Access your app at: http://localhost:3000"
         }
         failure {
             echo "❌ Pipeline failed"
